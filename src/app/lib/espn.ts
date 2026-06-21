@@ -151,19 +151,32 @@ function statMap(stats: any[] = []) {
 
 export async function getStandings(): Promise<GroupStanding[]> {
   const data = await getJson<any>(STANDINGS_URL, 300);
-  return (data.children ?? []).map((child: any) => ({
-    name: child.name,
-    teams: (child.standings?.entries ?? []).map((entry: any, index: number) => {
-      const mapped = statMap(entry.stats);
-      return {
-        team: entry.team,
-        rank: index + 1,
-        note: entry.note?.description,
-        stats: mapped.display,
-        statValues: mapped.values,
-      } satisfies StandingTeam;
-    }),
-  }));
+  return (data.children ?? []).map((child: any) => {
+    const teams = (child.standings?.entries ?? [])
+      .map((entry: any, index: number) => {
+        const mapped = statMap(entry.stats);
+        const rank = mapped.values.rank || index + 1;
+        return {
+          team: entry.team,
+          rank,
+          note: entry.note?.description,
+          stats: mapped.display,
+          statValues: mapped.values,
+        } satisfies StandingTeam;
+      })
+      .sort((a: StandingTeam, b: StandingTeam) => {
+        const rankDiff = a.rank - b.rank;
+        if (rankDiff !== 0) return rankDiff;
+        const pointDiff = (b.statValues.points ?? 0) - (a.statValues.points ?? 0);
+        if (pointDiff !== 0) return pointDiff;
+        return (b.statValues.pointDifferential ?? 0) - (a.statValues.pointDifferential ?? 0);
+      });
+
+    return {
+      name: child.name,
+      teams,
+    };
+  });
 }
 
 export function teamInMatch(match: Match, names: string[]) {

@@ -195,7 +195,7 @@ function describeGoalArc(match: Match) {
   const unmentionedLateBeats = lateBeats.filter((beat) => !mentionedBeats.has(beat));
   if (unmentionedLateBeats.length > 0) {
     sentences.push(`Late swing: ${joinWithAnd(unmentionedLateBeats)}.`);
-  } else if (decisive && decisive.minute >= 45) {
+  } else if (decisive && decisive.minute >= 45 && !mentionedBeats.has(decisive.text)) {
     sentences.push(`Decisive stretch: ${decisive.text}.`);
   }
 

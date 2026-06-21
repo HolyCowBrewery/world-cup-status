@@ -22,6 +22,14 @@ export type GoalEvent = {
   type: string;
 };
 
+export type MatchIncident = {
+  minute: string;
+  teamId?: string;
+  player: string;
+  type: string;
+  scoringPlay: boolean;
+};
+
 export type Match = {
   id: string;
   date: string;
@@ -35,6 +43,7 @@ export type Match = {
   completed: boolean;
   teams: MatchTeam[];
   goals: GoalEvent[];
+  incidents: MatchIncident[];
 };
 
 export type StandingTeam = {
@@ -94,13 +103,21 @@ export async function getMatches(): Promise<Match[]> {
         }))
         .sort((a: MatchTeam) => (a.homeAway === "home" ? -1 : 1));
 
-      const goals = (competition.details ?? [])
-        .filter((detail: any) => detail.scoringPlay)
-        .map((detail: any) => ({
-          minute: detail.clock?.displayValue ?? "",
-          teamId: detail.team?.id,
-          player: detail.athletesInvolved?.[0]?.displayName ?? "Unknown scorer",
-          type: detail.type?.text ?? "Goal",
+      const incidents = (competition.details ?? []).map((detail: any) => ({
+        minute: detail.clock?.displayValue ?? "",
+        teamId: detail.team?.id,
+        player: detail.athletesInvolved?.[0]?.displayName ?? "Unknown player",
+        type: detail.type?.text ?? "Incident",
+        scoringPlay: Boolean(detail.scoringPlay),
+      }));
+
+      const goals = incidents
+        .filter((detail: MatchIncident) => detail.scoringPlay)
+        .map((detail: MatchIncident) => ({
+          minute: detail.minute,
+          teamId: detail.teamId,
+          player: detail.player === "Unknown player" ? "Unknown scorer" : detail.player,
+          type: detail.type,
         }));
 
       return {
@@ -116,6 +133,7 @@ export async function getMatches(): Promise<Match[]> {
         completed: Boolean(event.status?.type?.completed ?? competition.status?.type?.completed),
         teams,
         goals,
+        incidents,
       } satisfies Match;
     })
     .sort((a: Match, b: Match) => new Date(a.date).getTime() - new Date(b.date).getTime());

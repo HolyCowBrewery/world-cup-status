@@ -125,6 +125,113 @@ function teamForGoal(match: Match, teamId?: string) {
   return match.teams.find((side) => side.team.id === teamId)?.team;
 }
 
+function joinWithAnd(items: string[]) {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+function goalTypeLabel(type: string) {
+  const lower = type.toLowerCase();
+  if (lower.includes("penalty")) return "penalty";
+  if (lower.includes("own goal")) return "own goal";
+  if (lower.includes("header")) return "header";
+  return "goal";
+}
+
+function goalMinuteNumber(minute: string) {
+  const parsed = Number.parseInt(minute, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function describeGoalArc(match: Match) {
+  const [home, away] = match.teams;
+  if (!home || !away || match.goals.length === 0) return "";
+
+  let homeRunning = 0;
+  let awayRunning = 0;
+  const beats = match.goals.map((goal) => {
+    const scoringSide = match.teams.find((side) => side.team.id === goal.teamId);
+    const scoringName = scoringSide?.team.displayName ?? "the scoring side";
+    const beforeHome = homeRunning;
+    const beforeAway = awayRunning;
+    if (scoringSide?.homeAway === "home") homeRunning += 1;
+    if (scoringSide?.homeAway === "away") awayRunning += 1;
+    const afterHome = homeRunning;
+    const afterAway = awayRunning;
+    const wasLevel = beforeHome === beforeAway;
+    const isLevel = afterHome === afterAway;
+    const scoringWasAhead = scoringSide?.homeAway === "home" ? beforeHome > beforeAway : beforeAway > beforeHome;
+    const scorer = goal.player;
+    const type = goalTypeLabel(goal.type);
+    const scorerText = type === "own goal" ? `${scorer} own goal` : `${scorer}${type === "goal" ? "" : ` ${type}`}`;
+
+    let action = "scored";
+    if (wasLevel && !isLevel) action = `put ${scoringName} ahead`;
+    else if (!wasLevel && isLevel) action = `pulled ${scoringName} level`;
+    else if (scoringWasAhead) action = `stretched ${scoringName}'s lead`;
+    else action = `cut ${scoringName}'s deficit`;
+
+    return { text: `${scorerText} ${action} on ${goal.minute}`, minute: goalMinuteNumber(goal.minute), scoringName, afterHome, afterAway };
+  });
+
+  const opener = beats[0]?.text;
+  const lateBeats = beats.filter((beat) => beat.minute >= 75).map((beat) => beat.text);
+  const winner = home.score === away.score ? null : home.score > away.score ? home : away;
+  const decisive = winner
+    ? beats.findLast((beat) => beat.scoringName === winner.team.displayName && (
+        winner.homeAway === "home" ? beat.afterHome > beat.afterAway : beat.afterAway > beat.afterHome
+      ))
+    : null;
+
+  const sentences = opener ? [`Sequence: ${opener}`] : [];
+  if (match.goals.length > 1) {
+    const remaining = beats.slice(1, 4).map((beat) => beat.text);
+    sentences.push(remaining.length ? `Then ${joinWithAnd(remaining)}.` : "");
+  }
+  if (lateBeats.length > 0) {
+    sentences.push(`Late swing: ${joinWithAnd(lateBeats)}.`);
+  } else if (decisive && decisive.minute >= 45) {
+    sentences.push(`Decisive stretch: ${decisive.text}.`);
+  }
+
+  return sentences.filter(Boolean).join(" ");
+}
+
+function describeMatchTexture(match: Match) {
+  const [home, away] = match.teams;
+  if (!home || !away) return "";
+
+  const redCards = match.incidents.filter((incident) => incident.type.toLowerCase().includes("red card"));
+  const yellowCards = match.incidents.filter((incident) => incident.type.toLowerCase().includes("yellow card"));
+  const scorerCounts = new Map<string, number>();
+  for (const goal of match.goals) {
+    if (!goal.type.toLowerCase().includes("own goal")) scorerCounts.set(goal.player, (scorerCounts.get(goal.player) ?? 0) + 1);
+  }
+  const multiScorers = [...scorerCounts.entries()].filter(([, count]) => count > 1).map(([player, count]) => `${player} (${count})`);
+
+  const texture: string[] = [];
+  if (home.score === 0 || away.score === 0) {
+    const cleanSheetSide = home.score === 0 ? away : home;
+    texture.push(`${cleanSheetSide.team.displayName} kept the clean sheet.`);
+  }
+  if (home.score === away.score && match.goals.length > 0) {
+    const finalGoal = match.goals[match.goals.length - 1];
+    const finalTeam = teamForGoal(match, finalGoal.teamId)?.displayName ?? "one side";
+    texture.push(`${finalTeam}'s ${finalGoal.minute} goal was the equaliser.`);
+  }
+  if (multiScorers.length > 0) {
+    texture.push(`Multi-goal scorer: ${joinWithAnd(multiScorers)}.`);
+  }
+  if (redCards.length > 0) {
+    texture.push(`Red cards shaped it: ${joinWithAnd(redCards.map((card) => `${card.player} ${card.minute}`))}.`);
+  } else if (yellowCards.length >= 4) {
+    texture.push(`Chippy game: ${yellowCards.length} yellow cards.`);
+  }
+
+  return texture.join(" ");
+}
+
 function matchCommentary(match: Match) {
   const [home, away] = match.teams;
   if (!home || !away) return "Match details are unavailable.";
@@ -134,14 +241,23 @@ function matchCommentary(match: Match) {
   }
 
   const result = matchHeadline(match);
-  const goals = match.goals.length
-    ? `Goals: ${match.goals.map((goal) => `${goal.player} ${goal.minute}`).join("; ")}.`
-    : "No scorer feed was returned for this match.";
-  const outcome = home.score === away.score
-    ? "The result keeps both sides moving but leaves the table pressure intact."
-    : `${home.score > away.score ? home.team.displayName : away.team.displayName} banked the full three points and improved their qualification position.`;
+  const arc = describeGoalArc(match);
+  const texture = describeMatchTexture(match);
+  const goalList = match.goals.length
+    ? `Goal log: ${match.goals.map((goal) => {
+        const scoringTeam = teamForGoal(match, goal.teamId)?.displayName;
+        const type = goalTypeLabel(goal.type);
+        return `${goal.player} ${goal.minute}${scoringTeam ? ` for ${scoringTeam}` : ""}${type === "goal" ? "" : ` (${type})`}`;
+      }).join("; ")}.`
+    : "ESPN did not return individual scorer data for this match.";
 
-  return `${result} ${outcome} ${goals} Context: ${match.group}; ${match.venue}${match.city ? `, ${match.city}` : ""}.`;
+  return [
+    result,
+    arc,
+    texture,
+    goalList,
+    `${shortGroup(match)} at ${match.venue}${match.city ? `, ${match.city}` : ""}.`,
+  ].filter(Boolean).join(" ");
 }
 
 function MiniTeamStatus({ teamName, matches, groups }: { teamName: string; matches: Match[]; groups: Groups }) {

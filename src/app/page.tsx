@@ -27,6 +27,61 @@ function shortGroup(match: Match) {
   return match.group.replace("FIFA World Cup, ", "").replace("FIFA World Cup", "Knockout");
 }
 
+const flagByAbbreviation: Record<string, string> = {
+  ALG: "🇩🇿",
+  ARG: "🇦🇷",
+  AUS: "🇦🇺",
+  AUT: "🇦🇹",
+  BEL: "🇧🇪",
+  BIH: "🇧🇦",
+  BRA: "🇧🇷",
+  CAN: "🇨🇦",
+  CIV: "🇨🇮",
+  COD: "🇨🇩",
+  COL: "🇨🇴",
+  CPV: "🇨🇻",
+  CRO: "🇭🇷",
+  CUW: "🇨🇼",
+  CZE: "🇨🇿",
+  ECU: "🇪🇨",
+  EGY: "🇪🇬",
+  ENG: "🏴",
+  ESP: "🇪🇸",
+  FRA: "🇫🇷",
+  GER: "🇩🇪",
+  GHA: "🇬🇭",
+  HAI: "🇭🇹",
+  IRN: "🇮🇷",
+  IRQ: "🇮🇶",
+  JOR: "🇯🇴",
+  JPN: "🇯🇵",
+  KOR: "🇰🇷",
+  KSA: "🇸🇦",
+  MAR: "🇲🇦",
+  MEX: "🇲🇽",
+  NED: "🇳🇱",
+  NOR: "🇳🇴",
+  NZL: "🇳🇿",
+  PAN: "🇵🇦",
+  PAR: "🇵🇾",
+  POR: "🇵🇹",
+  QAT: "🇶🇦",
+  RSA: "🇿🇦",
+  SCO: "🏴",
+  SEN: "🇸🇳",
+  SUI: "🇨🇭",
+  SWE: "🇸🇪",
+  TUN: "🇹🇳",
+  TUR: "🇹🇷",
+  USA: "🇺🇸",
+  URU: "🇺🇾",
+  UZB: "🇺🇿",
+};
+
+function flagForTeam(abbreviation?: string) {
+  return abbreviation ? flagByAbbreviation[abbreviation] ?? "🏳️" : "🏳️";
+}
+
 function teamStanding(groups: Groups, teamName: string) {
   for (const group of groups) {
     const standing = group.teams.find((entry) => entry.team.displayName === teamName || entry.team.abbreviation === teamName);
@@ -72,7 +127,7 @@ function MiniTeamStatus({ teamName, matches, groups }: { teamName: string; match
   const standing = teamStanding(groups, teamName);
   const upcoming = nextMatch(matches, teamName);
   const recent = lastMatch(matches, teamName);
-  const flag = teamName === "United States" ? "🇺🇸" : "ENG";
+  const flag = teamName === "United States" ? flagForTeam("USA") : flagForTeam("ENG");
 
   return (
     <details className="group rounded-2xl border border-white/10 bg-white/[0.055] p-4 backdrop-blur-xl">
@@ -112,9 +167,9 @@ function CompactMatch({ match, highlight = false, commentary = false }: { match:
             <span className="truncate">{shortGroup(match)}</span>
           </div>
           <div className="mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-sm text-white">
-            <span className="truncate font-medium">{home?.team.displayName ?? "TBC"}</span>
+            <span className="truncate font-medium"><span className="mr-1.5">{flagForTeam(home?.team.abbreviation)}</span>{home?.team.displayName ?? "TBC"}</span>
             <span className="font-semibold tabular-nums">{match.completed || match.state === "in" ? home?.score : "–"}</span>
-            <span className="truncate font-medium">{away?.team.displayName ?? "TBC"}</span>
+            <span className="truncate font-medium"><span className="mr-1.5">{flagForTeam(away?.team.abbreviation)}</span>{away?.team.displayName ?? "TBC"}</span>
             <span className="font-semibold tabular-nums">{match.completed || match.state === "in" ? away?.score : "–"}</span>
           </div>
         </div>
@@ -186,7 +241,7 @@ function GroupCard({ group }: { group: Groups[number] }) {
           const focus = ["United States", "England"].includes(entry.team.displayName);
           return (
             <div key={entry.team.id} className={cx("grid grid-cols-[1fr_2rem_2rem_2.4rem] items-center rounded-xl px-2 py-2 text-sm", entry.rank <= 2 ? "bg-emerald-300/[0.10]" : "bg-white/[0.03]", focus && "ring-1 ring-sky-300/60") }>
-              <span className="truncate text-white">{entry.rank}. {entry.team.displayName}</span>
+              <span className="truncate text-white"><span className="mr-1.5">{flagForTeam(entry.team.abbreviation)}</span>{entry.rank}. {entry.team.displayName}</span>
               <span className="text-center text-white/55">{entry.stats.gamesPlayed ?? 0}</span>
               <span className="text-center text-white/55">{entry.stats.pointDifferential ?? 0}</span>
               <span className="text-right font-semibold text-white">{entry.stats.points ?? 0}</span>

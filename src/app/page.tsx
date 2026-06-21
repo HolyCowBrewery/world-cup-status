@@ -184,13 +184,17 @@ function describeGoalArc(match: Match) {
       ))
     : null;
 
+  const mentionedBeats = new Set<string>();
+  if (opener) mentionedBeats.add(opener);
   const sentences = opener ? [`Sequence: ${opener}`] : [];
   if (match.goals.length > 1) {
     const remaining = beats.slice(1, 4).map((beat) => beat.text);
+    for (const beat of remaining) mentionedBeats.add(beat);
     sentences.push(remaining.length ? `Then ${joinWithAnd(remaining)}.` : "");
   }
-  if (lateBeats.length > 0) {
-    sentences.push(`Late swing: ${joinWithAnd(lateBeats)}.`);
+  const unmentionedLateBeats = lateBeats.filter((beat) => !mentionedBeats.has(beat));
+  if (unmentionedLateBeats.length > 0) {
+    sentences.push(`Late swing: ${joinWithAnd(unmentionedLateBeats)}.`);
   } else if (decisive && decisive.minute >= 45) {
     sentences.push(`Decisive stretch: ${decisive.text}.`);
   }
@@ -211,7 +215,9 @@ function describeMatchTexture(match: Match) {
   const multiScorers = [...scorerCounts.entries()].filter(([, count]) => count > 1).map(([player, count]) => `${player} (${count})`);
 
   const texture: string[] = [];
-  if (home.score === 0 || away.score === 0) {
+  if (home.score === 0 && away.score === 0) {
+    texture.push("Both sides kept clean sheets.");
+  } else if (home.score === 0 || away.score === 0) {
     const cleanSheetSide = home.score === 0 ? away : home;
     texture.push(`${cleanSheetSide.team.displayName} kept the clean sheet.`);
   }

@@ -343,6 +343,45 @@ function CompactMatch({ match, highlight = false, commentary = false }: { match:
   );
 }
 
+function LiveNowPanel({ matches }: { matches: Match[] }) {
+  if (matches.length === 0) return null;
+
+  return (
+    <section id="live-now" className="mt-3 rounded-[1.75rem] border border-emerald-300/35 bg-emerald-300/[0.10] p-3 shadow-2xl shadow-emerald-950/20 backdrop-blur-xl sm:p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
+            <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.9)]" />
+            Live now
+          </div>
+          <h2 className="mt-1 text-lg font-semibold text-white">Live match status</h2>
+        </div>
+        <a href="#live-upcoming" className="shrink-0 rounded-full bg-emerald-300 px-3 py-1.5 text-xs font-semibold text-black">Details</a>
+      </div>
+
+      <div className="grid gap-2">
+        {matches.map((match) => {
+          const [home, away] = match.teams;
+          return (
+            <div key={match.id} className="rounded-2xl border border-white/10 bg-black/25 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+                <span className="rounded-full bg-emerald-300 px-2.5 py-1 font-bold text-black">{match.status || "LIVE"}</span>
+                <span className="truncate text-white/45">{shortGroup(match)}</span>
+              </div>
+              <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-base text-white">
+                <span className="truncate font-semibold"><Flag abbreviation={home?.team.abbreviation} label={home?.team.displayName} />{home?.team.displayName ?? "TBC"}</span>
+                <span className="text-xl font-bold tabular-nums">{home?.score ?? 0}</span>
+                <span className="truncate font-semibold"><Flag abbreviation={away?.team.abbreviation} label={away?.team.displayName} />{away?.team.displayName ?? "TBC"}</span>
+                <span className="text-xl font-bold tabular-nums">{away?.score ?? 0}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function CompactSection({
   id,
   title,
@@ -430,6 +469,7 @@ export default async function Home() {
           </div>
           <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 text-sm">
             {[
+              ...(live.length ? [["#live-now", "Live now"]] : []),
               ["#live-upcoming", "Live + upcoming"],
               ["#focus", "USA / England"],
               ["#past", "Past"],
@@ -440,6 +480,8 @@ export default async function Home() {
             ))}
           </nav>
         </header>
+
+        <LiveNowPanel matches={live} />
 
         {dataIssue ? (
           <div className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">

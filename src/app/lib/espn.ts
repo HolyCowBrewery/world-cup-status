@@ -67,11 +67,12 @@ const STANDINGS_URL =
 async function getJson<T>(url: string, revalidate: number): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8_000);
+  const cacheOptions = revalidate === 0 ? { cache: "no-store" as const } : { next: { revalidate } };
   try {
     const res = await fetch(url, {
       headers: { "user-agent": "world-cup-status/1.0" },
       signal: controller.signal,
-      next: { revalidate },
+      ...cacheOptions,
     });
 
     if (!res.ok) {
@@ -89,7 +90,7 @@ function toNumber(score: unknown): number {
 }
 
 export async function getMatches(): Promise<Match[]> {
-  const data = await getJson<any>(SCOREBOARD_URL, 30);
+  const data = await getJson<any>(SCOREBOARD_URL, 0);
   return (data.events ?? [])
     .map((event: any) => {
       const competition = event.competitions?.[0] ?? {};

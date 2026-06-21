@@ -121,6 +121,10 @@ function matchStatus(match: Match) {
   return formatKickoff(match.date);
 }
 
+function teamForGoal(match: Match, teamId?: string) {
+  return match.teams.find((side) => side.team.id === teamId)?.team;
+}
+
 function matchCommentary(match: Match) {
   const [home, away] = match.teams;
   if (!home || !away) return "Match details are unavailable.";
@@ -202,9 +206,14 @@ function CompactMatch({ match, highlight = false, commentary = false }: { match:
         {commentary ? <p className="mt-3 text-white/72">{matchCommentary(match)}</p> : null}
         {match.goals.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-2">
-            {match.goals.map((goal, idx) => (
-              <span key={`${goal.player}-${idx}`} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white/60">⚽ {goal.player} {goal.minute}</span>
-            ))}
+            {match.goals.map((goal, idx) => {
+              const scoringTeam = teamForGoal(match, goal.teamId);
+              return (
+                <span key={`${goal.player}-${idx}`} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white/60">
+                  <Flag abbreviation={scoringTeam?.abbreviation} label={scoringTeam?.displayName} />{goal.player} {goal.minute}
+                </span>
+              );
+            })}
           </div>
         ) : null}
       </div>

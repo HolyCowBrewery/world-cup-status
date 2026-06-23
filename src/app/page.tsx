@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import Countdown from "./components/Countdown";
+import LocalKickoff from "./components/LocalKickoff";
 import {
   formatKickoff,
   getMatches,
@@ -288,7 +289,7 @@ function MiniTeamStatus({ teamName, matches, groups }: { teamName: string; match
           <span className="text-white/35">Last:</span> {recent ? scoreline(recent) : "No result yet"}
         </div>
         <div className="rounded-xl bg-black/25 p-3">
-          <span className="text-white/35">Next:</span> {upcoming ? `${upcoming.shortName} · ${formatKickoff(upcoming.date)}` : "No fixture listed"}
+          <span className="text-white/35">Next:</span> {upcoming ? <><span>{upcoming.shortName} · </span><LocalKickoff date={upcoming.date} /></> : "No fixture listed"}
           {upcoming ? <div className="mt-2 font-medium text-white/80"><Countdown date={upcoming.date} compact /></div> : null}
         </div>
       </div>
@@ -305,7 +306,9 @@ function CompactMatch({ match, highlight = false, commentary = false }: { match:
       <summary className="grid cursor-pointer list-none grid-cols-[1fr_auto] items-center gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/35">
-            <span className={cx(match.state === "in" && "text-emerald-300")}>{matchStatus(match)}</span>
+            <span className={cx(match.state === "in" && "text-emerald-300")}>
+              {isUpcoming ? <LocalKickoff date={match.date} /> : matchStatus(match)}
+            </span>
             <span>·</span>
             <span className="truncate">{shortGroup(match)}</span>
           </div>
@@ -323,7 +326,7 @@ function CompactMatch({ match, highlight = false, commentary = false }: { match:
       </summary>
 
       <div className="mt-4 border-t border-white/10 pt-4 text-sm leading-6 text-white/62">
-        <div><span className="text-white/35">Kickoff:</span> {formatKickoff(match.date)}</div>
+        <div><span className="text-white/35">Kickoff:</span> {isUpcoming ? <LocalKickoff date={match.date} /> : formatKickoff(match.date)}</div>
         <div><span className="text-white/35">Venue:</span> {match.venue}{match.city ? `, ${match.city}` : ""}</div>
         {commentary ? <p className="mt-3 text-white/72">{matchCommentary(match)}</p> : null}
         {match.goals.length > 0 ? (
